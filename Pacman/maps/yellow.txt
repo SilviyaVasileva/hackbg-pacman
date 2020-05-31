@@ -1,0 +1,17 @@
+dimensions=13x21
+color=128, 128, 128
+player=9, 8
+total=111
+#####################
+#pooooooooooooooooop#
+#o##o###########o##o#        
+#ooooooooooooooooooo#
+#o##### ##e## #####o#    
+#o#####p#ggg# #####o#
+#o##### ##### #####o#               
+#ooooooooo#ooooooooo#
+#######ooosooo#######         
+#ooooooooo#ooooooooo#
+#o##o####o#o####o##o#
+#poooooooo#oooooooop#
+#####################
