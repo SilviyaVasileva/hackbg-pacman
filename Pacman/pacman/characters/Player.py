@@ -45,6 +45,9 @@ class Player:
         self.last_move_direction = "right"
         self.velocity = 4
 
+        # =============== Game points ===============
+        self.points = 0
+
         # =============== Debug ===============
         self.draw_collisions = False
 
@@ -126,3 +129,7 @@ class Player:
     # ######################### Setting and Getting #########################
     def enable_collision_rendering(self, val=True):
         self.draw_collisions = val
+
+    # ######################### Updating pints #########################
+    def update_points(self, points):
+        self.points += points
