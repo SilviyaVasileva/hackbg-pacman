@@ -19,6 +19,9 @@ class Maze:
     }
     parser_keywords_count = len(parser_keywords)
 
+    # =============== Top and bottom scale offset ===============
+    TOP_BOTTOM_OFFSET = 60
+
     # ######################### Setups and Properties #########################
     def __init__(self, mapfile, player):
         # =============== Configs ===============
@@ -64,14 +67,20 @@ class Maze:
         # =============== Debug vars ===============
         self.draw_all_collisions = False
 
+        # =============== Start game ===============
+        self.start_game = False
+
+        # =============== Game points ===============
+        self.game_points = 0
+
     def place_player(self, screen):
         self.player.pos['x'] = self.player_start[0]*self.map_scale[0]
-        self.player.pos['y'] = self.player_start[1]*self.map_scale[1]
+        self.player.pos['y'] = self.player_start[1]*self.map_scale[1] + 60
         self.player.update_collision()
         self.player.render(screen)
 
-    def start(self):
-        pass
+    def start(self, screen):
+        self.display_points(screen)
 
     # ######################### State #########################
     def render(self, screen):
@@ -88,6 +97,11 @@ class Maze:
         '''
 
         screen.fill(self.color)
+
+        button_coord = (self.map_scale[0] * self.dimensions[1] // 2 - 35,
+                self.map_scale[1] * self.dimensions[0] +  70,
+                70, 40)
+        self.start_button(screen, (188, 188, 188), button_coord)
 
         for wall_rect in self.collision_map['walls']:
             pygame.draw.rect(screen, self.wall_color, wall_rect)
@@ -111,6 +125,7 @@ class Maze:
 
         for i, row in enumerate(self.maze):
             i *= self.map_scale[1]
+            i += 60   # TOP_BOTTOM_OFFSET
             for j, pos in enumerate(row):
                 j *= self.map_scale[0]
                 if pos == '#':
@@ -154,6 +169,8 @@ class Maze:
 
     def collect_dot(self, idx):
         self.dots_total -= 1
+        self.game_points += 10
+        # print(self.game_points)
         del self.collision_map["dots"][idx]
 
     # ############################## Map Parsing ##############################
@@ -243,9 +260,52 @@ class Maze:
 
         '''
         return (self.map_scale[0] * self.dimensions[1],
-                self.map_scale[1] * self.dimensions[0])
+                self.map_scale[1] * self.dimensions[0] + 2 * 60) #  TOP_BOTTOM_OFFSET)
 
     # ############################## Debug ##############################
     def enable_collision_rendering(self, val=True):
         self.draw_all_collisions = val
         self.player.enable_collision_rendering(val)
+
+    # ############################## Draw button ##############################
+    def start_button(self, screen, button_color, coord):
+        pygame.draw.rect(screen, button_color, coord)
+        smallText = pygame.font.Font("freesansbold.ttf", 20)
+        textSurf, textRect = self.text_objects("GO!", smallText)
+        textRect.center = ((coord[0] + (coord[2] // 2)), (coord[1] + (coord[3] // 2)))
+        screen.blit(textSurf, textRect)
+        if not self.start_game:
+            self.start_game = self.button_click(coord)
+        else:
+            self.start(screen)
+        # pygame.display.update()
+
+    # ############################## Draw button text ##############################
+    def button_click(self, coord):
+        # mouse movement
+        mouse_coord = pygame.mouse.get_pos()
+
+        if coord[0] + coord[2] > mouse_coord[0] > coord[0] and coord[1] + coord[3] > mouse_coord[1] > coord[3]:
+            mouse_click = pygame.mouse.get_pressed()
+            if mouse_click[0] == 1:
+                return True
+            # print(mouse_click)
+        # print(mouse_coord)
+        return False
+
+    # ############################## Draw button text ##############################
+    def text_objects(self, text, font):
+        textSurface = font.render(text, True, (0, 180, 50))
+        return textSurface, textSurface.get_rect()
+
+    # ############################## Display points ##############################
+    def display_points(self, screen):
+        smallText = pygame.font.Font("freesansbold.ttf", 20)
+        textSurf, textRect = self.text_objects(str(self.game_points), smallText)
+        textRect.center = (30, 30)
+        screen.blit(textSurf, textRect)
+        # print(str(self.game_points))
+
+    # ############################## Print lifes ##############################
+    def hearts(self):
+        pass
