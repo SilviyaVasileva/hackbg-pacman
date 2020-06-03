@@ -13,38 +13,42 @@ def pacman_game(mapfile):
     maze = Maze(mapfile, player)
     screen = pygame.display.set_mode(maze.win_size(), 0, 32) # Initialize window
 
+
+
     maze.place_player(screen)
     pygame.display.update()
 
     while True:
+        # Check if the game is started
+        if maze.start_game:
         # PLAYER MOVEMENT
-        if player.moving["up"]:
-            player.y -= player.velocity
-            if maze.collide(maze.player.hitbox, "walls"): # If move results in collision
-                maze.player.y += player.velocity  # revert to last valid position
-            else:  # If move does not result in collision
-                maze.player.last_move_direction = "up"  # Pacman will face this movement direction
-    
-        if player.moving["right"]:  
-            maze.player.x += player.velocity
-            if maze.collide(maze.player.hitbox, "walls"):  # If move results in collision
-                maze.player.x -= player.velocity  # revert to last valid position
-            else:  # If move does not result in collision
-                maze.player.last_move_direction = "right" # revert to last valid position
+            if player.moving["up"]:
+                player.y -= player.velocity
+                if maze.collide(maze.player.hitbox, "walls"): # If move results in collision
+                    maze.player.y += player.velocity  # revert to last valid position
+                else:  # If move does not result in collision
+                    maze.player.last_move_direction = "up"  # Pacman will face this movement direction
+        
+            if player.moving["right"]:  
+                maze.player.x += player.velocity
+                if maze.collide(maze.player.hitbox, "walls"):  # If move results in collision
+                    maze.player.x -= player.velocity  # revert to last valid position
+                else:  # If move does not result in collision
+                    maze.player.last_move_direction = "right" # revert to last valid position
 
-        if player.moving["down"]:
-            player.y += player.velocity
-            if maze.collide(maze.player.hitbox, "walls"):  # If move results in collision
-                player.y -= player.velocity  # revert to last valid position
-            else:  # If move does not result in collision
-                maze.player.last_move_direction = "down"  # revert to last valid position
-    
-        if player.moving["left"]:
-            player.x -= player.velocity
-            if maze.collide(maze.player.hitbox, "walls"):  # If move results in collision
-                player.x += player.velocity  # revert to last valid position
-            else:  # If move does not result in collision
-                maze.player.last_move_direction = "left"  # revert to last valid position
+            if player.moving["down"]:
+                player.y += player.velocity
+                if maze.collide(maze.player.hitbox, "walls"):  # If move results in collision
+                    player.y -= player.velocity  # revert to last valid position
+                else:  # If move does not result in collision
+                    maze.player.last_move_direction = "down"  # revert to last valid position
+        
+            if player.moving["left"]:
+                player.x -= player.velocity
+                if maze.collide(maze.player.hitbox, "walls"):  # If move results in collision
+                    player.x += player.velocity  # revert to last valid position
+                else:  # If move does not result in collision
+                    maze.player.last_move_direction = "left"  # revert to last valid position
 
         # USER INPUT
         for event in pygame.event.get():
@@ -69,6 +73,7 @@ def pacman_game(mapfile):
                     maze.player.set_direction("down", False)
                 if event.key == K_LEFT:
                     maze.player.set_direction("left", False)
+
 
         maze.interractions()
         maze.render(screen)
