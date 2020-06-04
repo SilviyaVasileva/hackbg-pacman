@@ -36,14 +36,15 @@ class Player:
 
         # =============== Movement and Direction ===============
         self.pos = {'x': None, 'y': None}
-        self.moving = {
-            "up": False,
-            "right": False,
-            "down": False,
-            "left": False
-        }
+        self.moving_right = False
+        self.moving_left = False
+        self.moving_up = False
+        self.moving_down = False
         self.last_move_direction = "right"
         self.velocity = 4
+
+        # =============== Game points ===============
+        self.points = 0
 
         # =============== Debug ===============
         self.draw_collisions = False
@@ -67,16 +68,10 @@ class Player:
         self.pos['y'] = val
         self.update_collision()
 
-    def set_direction(self, direction, state):
-        for direc in self.moving:
-            if direc == direction:
-                self.moving[direc] = state
-
     # ######################### State #########################
     def is_moving(self):
-        for direc in self.moving:
-            if self.moving[direc] == True:
-                return True
+        if self.moving_up or self.moving_right or self.moving_down or self.moving_left:
+            return True
         return False
 
     def update_collision(self):
@@ -84,7 +79,7 @@ class Player:
 
     def render(self, screen):
         if (self.x is not None and self.y is not None):  # Make sure player is spawned
-            
+
             if self.last_move_direction == "up":
                 if self.is_moving():
                     self.spritesheet_up.render(screen, self.current_frame, self.x, self.y)
@@ -96,13 +91,13 @@ class Player:
                     self.spritesheet_right.render(screen, self.current_frame, self.x, self.y)
                 else:
                     screen.blit(self.img_right, (self.x, self.y))
-    
+
             elif self.last_move_direction == "down":
                 if self.is_moving():
                     self.spritesheet_down.render(screen, self.current_frame, self.x, self.y)
                 else:
                     screen.blit(self.img_down, (self.x, self.y))
-    
+
             elif self.last_move_direction == "left":
                 if self.is_moving():
                     self.spritesheet_left.render(screen, self.current_frame, self.x, self.y)
@@ -126,3 +121,7 @@ class Player:
     # ######################### Setting and Getting #########################
     def enable_collision_rendering(self, val=True):
         self.draw_collisions = val
+
+    # ######################### Updating pints #########################
+    def update_points(self, points):
+        self.points += points
