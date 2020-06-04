@@ -1,0 +1,18 @@
+dimensions=13x21
+player=10, 2
+color=0, 0, 0
+walls=24, 24, 128
+total=115
+#####################
+#ooooooooo#ooooooooo#
+#o#o#####o o#####o#o#
+#o#ooooo#o#o#ooooo#o#
+#o##o##o#o#o#o#####o#
+#pooooooooooooooooop#
+#o##o##o#####p##o##o#
+#ooopooooooooooooooo#
+#o##o## ##e## ##o##o#
+#oo#o  p#ggg# ##oooo#
+#o##o## ##### ##o##o#
+#oooo##ooooooo##oooo#
+#####################
