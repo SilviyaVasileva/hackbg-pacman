@@ -3,6 +3,9 @@ import sys
 import time
 
 
+from pygame.locals import *
+
+
 class Maze:
 
     # ######################### Static Data #########################
@@ -19,24 +22,28 @@ class Maze:
     }
     parser_keywords_count = len(parser_keywords)
 
-    # =============== Top and bottom scale offset ===============
-    TOP_BOTTOM_OFFSET = 60
+
+
 
     # ######################### Setups and Properties #########################
     def __init__(self, mapfile, player):
         # =============== Configs ===============
         self.clock = pygame.time.Clock()
+        self._state = "Start"
+        self.states = ["Start", "Playing"]
         self.map_scale = (36, 36)
+        self.bars_h = 80
         
         # =============== Automatic Image Loading ===============
         img_dot = pygame.image.load(f"{Maze.COLLECTIBLES}/dots/dot.png")
         self.img_dot = pygame.transform.scale(img_dot, self.map_scale)
 
-        # =============== Entity Custom Scale ===============
+        # =============== Positions and Scale ===============
         self.dots_scale = (10, 10)
         self.dots_offset = ((self.map_scale[0]- self.dots_scale[0]) // 2, (self.map_scale[1] - self.dots_scale[1]) // 2)
 
-        # =============== Matrix ===============
+
+        # =============== Maze data ===============
         self.collision_map = {
             "walls": [],
             "dots": [],
@@ -51,7 +58,6 @@ class Maze:
             "ghosts"
         ]
 
-        # =============== Maze data ===============
         init_data = self.__class__.parse(mapfile)
         self.dimensions = init_data['dimensions']
         self.color = init_data['color']
@@ -61,7 +67,21 @@ class Maze:
         self.player = player
         self.dots_total = init_data['total']
 
+        # =============== Game State ===============
+        self.game_points = 0
+
+        # =============== Display Elements ==============
+        self.font_20 = pygame.font.Font("freesansbold.ttf", 30)
+        self.start_button = self.font_20.render("Start", True, (0, 180, 50))
+        self.start_button_rect = self.start_button.get_rect()
+        raw_rect = self.start_button.get_rect()
+        raw_rect[2] += 100; raw_rect[3] += 30
+        self.start_button_frame_rect = raw_rect
+        self.start_button_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.map_scale[1] * self.dimensions[0] + self.bars_h * 1.5)  # , 70, 40)
+        self.start_button_frame_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.map_scale[1] * self.dimensions[0] + self.bars_h * 1.5)  # , 70, 40)
+
         # =============== Auto Init Commands ===============
+        self.screen = pygame.display.set_mode(self.win_size(), 0, 32)
         self.build()
 
         # =============== Debug vars ===============
@@ -70,20 +90,26 @@ class Maze:
         # =============== Start game ===============
         self.start_game = False
 
-        # =============== Game points ===============
-        self.game_points = 0
-
-    def place_player(self, screen):
+    def place_player(self):
         self.player.pos['x'] = self.player_start[0]*self.map_scale[0]
-        self.player.pos['y'] = self.player_start[1]*self.map_scale[1] + 60
+        self.player.pos['y'] = self.player_start[1]*self.map_scale[1] + self.bars_h
         self.player.update_collision()
-        self.player.render(screen)
+        self.player.render(self.screen)
 
-    def start(self, screen):
-        self.display_points(screen)
+    def start(self):
+        self.display_points(self.screen)
+
+    def set_state(self, val):
+        '''
+        'Start' - Game is frozen. Wait for the start button to be pressed. Block movement inputs.
+        'Playing' - Game is playing normally.
+        '''
+
+
+
 
     # ######################### State #########################
-    def render(self, screen):
+    def render(self):
         '''
         Renders the map.\n
         Map is interpreted as follows:
@@ -96,26 +122,34 @@ class Maze:
         'e' = ghosts spawn door (entry/exit)\n
         '''
 
-        screen.fill(self.color)
-
-        button_coord = (self.map_scale[0] * self.dimensions[1] // 2 - 35,
-                self.map_scale[1] * self.dimensions[0] +  70,
-                70, 40)
-        self.start_button(screen, (188, 188, 188), button_coord)
+        self.screen.fill(self.color)
 
         for wall_rect in self.collision_map['walls']:
-            pygame.draw.rect(screen, self.wall_color, wall_rect)
+            pygame.draw.rect(self.screen, self.wall_color, wall_rect)
 
         for dot in self.collision_map['dots']:
             j, i = dot[0], dot[1]
 
             jpos = j * self.map_scale[1]
             ipos = i * self.map_scale[0]
-            screen.blit(self.img_dot, (j - self.dots_offset[1], i - self.dots_offset[0]))
+            self.screen.blit(self.img_dot, (j - self.dots_offset[1], i - self.dots_offset[0]))
+
+        if self._state == "Start":
+            pygame.draw.rect(self.screen, self.wall_color, self.start_button_frame_rect, 4)
+            self.screen.blit(self.start_button, self.start_button_rect)
+
+        if self._state == "Playing":
+            self.render_points()
 
         if self.draw_all_collisions:
             for raw_rect in self.collision_map['dots']:
-                pygame.draw.rect(screen, (0, 0, 255), raw_rect, 2)
+                pygame.draw.rect(self.screen, (0, 0, 255), raw_rect, 2)
+
+    def render_points(self):
+        txt_points = self.font_20.render(f"{self.game_points}", True, (0, 180, 50))
+        txt_points_rect = txt_points.get_rect()
+        txt_points_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.bars_h // 2)
+        self.screen.blit(txt_points, txt_points_rect)
 
     def build(self):
         '''
@@ -125,7 +159,7 @@ class Maze:
 
         for i, row in enumerate(self.maze):
             i *= self.map_scale[1]
-            i += 60   # TOP_BOTTOM_OFFSET
+            i += self.bars_h
             for j, pos in enumerate(row):
                 j *= self.map_scale[0]
                 if pos == '#':
@@ -149,6 +183,81 @@ class Maze:
                 return True
 
     # ############################## Entity Interraction ##############################
+
+    def get_loop(self):
+        return self.loop
+
+    def loop(self):
+        self.place_player()
+        pygame.display.update()
+
+        while True:
+            # MOVE PLAYER
+            if self.player.moving_right:
+                self.player.x += self.player.velocity
+                if self.collide(self.player.hitbox, "walls"):
+                    self.player.x -= self.player.velocity
+                else:
+                    self.player.last_move_direction = "right"
+            if self.player.moving_left:
+                self.player.x -= self.player.velocity
+                if self.collide(self.player.hitbox, "walls"):
+                    self.player.x += self.player.velocity
+                else:
+                    self.player.last_move_direction = "left"
+            if self.player.moving_up:
+                self.player.y -= self.player.velocity
+                if self.collide(self.player.hitbox, "walls"):
+                    self.player.y += self.player.velocity
+                else:
+                    self.player.last_move_direction = "up"
+            if self.player.moving_down:
+                self.player.y += self.player.velocity
+                if self.collide(self.player.hitbox, "walls"):
+                    self.player.y -= self.player.velocity
+                else:
+                    self.player.last_move_direction = "down"
+
+            # GET NEXT INPUT
+            for event in pygame.event.get():
+                if event.type == QUIT:  # Check for window quit (when X is pressed)
+                    pygame.quit()  # stop pygame
+                    sys.exit()  # stop the script
+
+                if self._state == "Start":
+                    mouse_pos = pygame.mouse.get_pos()
+                    button_pos = self.start_button_rect
+                    if button_pos[0] + button_pos[2] > mouse_pos[0] > button_pos[0] and button_pos[1] + button_pos[3] > mouse_pos[1] > button_pos[3]:
+                        mouse_click = pygame.mouse.get_pressed()
+                        if mouse_click[0] == 1:
+                            self._state = "Playing"
+
+                elif self._state == "Playing":
+                    if event.type == KEYDOWN:  # on key press
+                        if event.key == K_RIGHT:
+                            self.player.moving_right = True
+                        if event.key == K_LEFT:
+                            self.player.moving_left = True
+                        if event.key == K_UP:
+                            self.player.moving_up = True
+                        if event.key == K_DOWN:
+                            self.player.moving_down = True
+                    if event.type == KEYUP:  # on key release
+                        if event.key == K_RIGHT:
+                            self.player.moving_right = False
+                        if event.key == K_LEFT:
+                            self.player.moving_left = False
+                        if event.key == K_UP:
+                            self.player.moving_up = False
+                        if event.key == K_DOWN:
+                            self.player.moving_down = False
+
+            self.interractions()
+            self.render()
+            self.player.render(self.screen)
+            pygame.display.update()
+            self.clock.tick(60)  # Framerate
+
     def interractions(self):
         for tile_type, tiles in self.collision_map.items():
 
@@ -177,7 +286,7 @@ class Maze:
     @classmethod
     def parse(cls, mapfile):
         '''
-        Parses the map. First parses the expected keywords, then the dungeon.
+        Parses the map. First parses the expected keywords, then the self.
 
         Map file general structure:
         keyword=val
@@ -253,6 +362,9 @@ class Maze:
                     matrix[idx] = matrix[idx][:-1]
         return matrix
 
+
+
+
     # ############################## Utility ##############################
     def win_size(self):
         '''
@@ -260,7 +372,10 @@ class Maze:
 
         '''
         return (self.map_scale[0] * self.dimensions[1],
-                self.map_scale[1] * self.dimensions[0] + 2 * 60) #  TOP_BOTTOM_OFFSET)
+                self.map_scale[1] * self.dimensions[0] + (2 * self.bars_h))
+
+
+
 
     # ############################## Debug ##############################
     def enable_collision_rendering(self, val=True):
@@ -268,43 +383,43 @@ class Maze:
         self.player.enable_collision_rendering(val)
 
     # ############################## Draw button ##############################
-    def start_button(self, screen, button_color, coord):
-        pygame.draw.rect(screen, button_color, coord)
-        smallText = pygame.font.Font("freesansbold.ttf", 20)
-        textSurf, textRect = self.text_objects("GO!", smallText)
-        textRect.center = ((coord[0] + (coord[2] // 2)), (coord[1] + (coord[3] // 2)))
-        screen.blit(textSurf, textRect)
-        if not self.start_game:
-            self.start_game = self.button_click(coord)
-        else:
-            self.start(screen)
-        # pygame.display.update()
+    # def start_button(self, screen, button_color, coord):
+    #     pygame.draw.rect(screen, button_color, coord)
+    #     Maze.font_20, textRect = self.text_objects("GO!", smallText)
+    #     textRect.center = ((coord[0] + (coord[2] // 2)), (coord[1] + (coord[3] // 2)))
+    #     screen.blit(textSurf, textRect)
+    #     if not self.start_game:
+    #         self.start_game = self.button_click(coord)
+    #     else:
+    #         self.start(screen)
+    #     # pygame.display.update()
 
-    # ############################## Draw button text ##############################
-    def button_click(self, coord):
-        # mouse movement
-        mouse_coord = pygame.mouse.get_pos()
+    # # ############################## Draw button text ##############################
+    # def button_click(self, coord):
+    #     # mouse movement
+    #     mouse_coord = pygame.mouse.get_pos()
 
-        if coord[0] + coord[2] > mouse_coord[0] > coord[0] and coord[1] + coord[3] > mouse_coord[1] > coord[3]:
-            mouse_click = pygame.mouse.get_pressed()
-            if mouse_click[0] == 1:
-                return True
-            # print(mouse_click)
-        # print(mouse_coord)
-        return False
+    #     if coord[0] + coord[2] > mouse_coord[0] > coord[0] and coord[1] + coord[3] > mouse_coord[1] > coord[3]:
+    #         mouse_click = pygame.mouse.get_pressed()
+    #         if mouse_click[0] == 1:
+    #             return True
+    #         # print(mouse_click)
+    #     # print(mouse_coord)
+    #     return False
 
-    # ############################## Draw button text ##############################
-    def text_objects(self, text, font):
-        textSurface = font.render(text, True, (0, 180, 50))
-        return textSurface, textSurface.get_rect()
+    # # ############################## Draw button text ##############################
+    # def text_objects(self, text, font):
+    #     textSurface = font.render(text, True, (0, 180, 50))
+    #     return textSurface, textSurface.get_rect()
+
+
+
 
     # ############################## Display points ##############################
-    def display_points(self, screen):
-        smallText = pygame.font.Font("freesansbold.ttf", 20)
-        textSurf, textRect = self.text_objects(str(self.game_points), smallText)
-        textRect.center = (30, 30)
-        screen.blit(textSurf, textRect)
-        # print(str(self.game_points))
+
+
+
+
 
     # ############################## Print lifes ##############################
     def hearts(self):
