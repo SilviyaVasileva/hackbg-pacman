@@ -1,5 +1,5 @@
 import pygame
-from ..utils.spritesheet import SpriteSheet
+from ..utils.AnimatedSpriteSheet import AnimatedSpriteSheet
 
 
 class Player:
@@ -23,11 +23,16 @@ class Player:
         self.img_down = pygame.transform.scale(img_down, (self.w, self.h))
         self.img_left = pygame.transform.scale(img_left, (self.w, self.h))
 
-        self.spritesheet_up = SpriteSheet(f"{Player.PACMAN}/pacman_up_spritesheet.png", 1, 3, 35, 35)
-        self.spritesheet_right = SpriteSheet(f"{Player.PACMAN}/pacman_right_spritesheet.png", 1, 3, 35, 35)
-        self.spritesheet_down = SpriteSheet(f"{Player.PACMAN}/pacman_down_spritesheet.png", 1, 3, 35, 35)
-        self.spritesheet_left = SpriteSheet(f"{Player.PACMAN}/pacman_left_spritesheet.png", 1, 3, 35, 35)
+        self.ss_up = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_up_spritesheet.png", 1, 3, self.w, self.h, (self.w, self.h))
+        self.ss_right = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_right_spritesheet.png", 1, 3, self.w, self.h, (self.w, self.h))
+        self.ss_down = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_down_spritesheet.png", 1, 3, self.w, self.h, (self.w, self.h))
+        self.ss_left = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_left_spritesheet.png", 1, 3, self.w, self.h, (self.w, self.h))
         
+        self.ss_up_large = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_up_spritesheet.png", 1, 3, 80, 80, (self.w, self.h))
+        self.ss_right_large = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_right_spritesheet.png", 1, 3, 80, 80, (self.w, self.h))
+        self.ss_down_large = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_down_spritesheet.png", 1, 3, 80, 80, (self.w, self.h))
+        self.ss_left_large = AnimatedSpriteSheet(f"{Player.PACMAN}/pacman_left_spritesheet.png", 1, 3, 80, 80, (self.w, self.h))
+
         # =============== Animation data ===============
         self.current_frame = 0  # current frame to display from the spritesheet
         self.counter = 0
@@ -82,25 +87,25 @@ class Player:
 
             if self.last_move_direction == "up":
                 if self.is_moving():
-                    self.spritesheet_up.render(screen, self.current_frame, self.x, self.y)
+                    self.ss_up.render(screen, self.x, self.y)
                 else:
                     screen.blit(self.img_up, (self.x, self.y))
 
             elif self.last_move_direction == "right":
                 if self.is_moving():
-                    self.spritesheet_right.render(screen, self.current_frame, self.x, self.y)
+                    self.ss_right.render(screen, self.x, self.y)
                 else:
                     screen.blit(self.img_right, (self.x, self.y))
 
             elif self.last_move_direction == "down":
                 if self.is_moving():
-                    self.spritesheet_down.render(screen, self.current_frame, self.x, self.y)
+                    self.ss_down.render(screen, self.x, self.y)
                 else:
                     screen.blit(self.img_down, (self.x, self.y))
 
             elif self.last_move_direction == "left":
                 if self.is_moving():
-                    self.spritesheet_left.render(screen, self.current_frame, self.x, self.y)
+                    self.ss_left.render(screen, self.x, self.y)
                 else:
                     screen.blit(self.img_left, (self.x, self.y))
 
@@ -110,13 +115,10 @@ class Player:
         self.update_anims()
 
     def update_anims(self):
-        loops_in_60_fps = 60 // self.anim_speed
-
-        if self.counter == self.frames * loops_in_60_fps:
-            self.counter = 0
-
-        self.current_frame = self.counter  // loops_in_60_fps
-        self.counter += 1
+        self.ss_up.update()
+        self.ss_right.update()
+        self.ss_down.update()
+        self.ss_left.update()
 
     # ######################### Setting and Getting #########################
     def enable_collision_rendering(self, val=True):
