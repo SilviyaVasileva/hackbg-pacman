@@ -31,17 +31,19 @@ class Maze:
     ]
 
 
-
     # ######################### Setups and Properties #########################
-    def __init__(self, mapfile, player, difficulty="Normal"):
+    def __init__(self, mapfile, player, score=0, difficulty="Normal"):
         # =============== Small Validations ===============
         if difficulty not in Maze.difficulty:
             raise ValueError("Unrecognized difficulty")
 
+        # =============== Timed Events ===============
+        self.RELEASE_GHOST = pygame.USEREVENT+1
+
         # =============== Configs ===============
         self.clock = pygame.time.Clock()
         self._state = "Start"
-        self.states = ["Start", "Playing"]
+        self.states = ["Start", "Playing", "Game Over"]
         self.map_scale = (36, 36)
         self.bars_h = 80
         self.difficulty = difficulty
@@ -61,7 +63,6 @@ class Maze:
             "dots": [],
             "power_dots": [],
             "gates": [],
-            "ghosts": []
         }
         self.entities = [
             "dots",
@@ -83,9 +84,9 @@ class Maze:
         self.gate_color = (224, 128, 128)
 
         # =============== Game State ===============
-        self.game_points = 0
-        self.ghost_box = []
-        self.ghost_roaming = []
+        self.game_points = score
+        self.ghosts = []
+        self.ghosts_in_box = 3
 
         # =============== Display Elements ==============
         self.font_20 = pygame.font.Font("freesansbold.ttf", 30)
@@ -113,7 +114,7 @@ class Maze:
             for i in range(0 , len(choices)):
                 skin = random.choice(choices)
                 choices.remove(skin)
-                self.ghost_box.append(Ghost(skin, self.player.velocity))
+                self.ghosts.append(Ghost(self, skin, self.player.velocity))
 
         self.place_ghosts()
 
@@ -125,7 +126,7 @@ class Maze:
 
     def place_ghosts(self):
         for i in range(3):
-            ghost = self.ghost_box[i]
+            ghost = self.ghosts[i]
             ghost.pos['x'] = self.ghosts_start[i][0] * self.map_scale[0]
             ghost.pos['y'] = self.ghosts_start[i][1] * self.map_scale[1] + self.bars_h
             ghost.update_collision()
@@ -171,6 +172,9 @@ class Maze:
         pygame.display.update()
 
         while True:
+            if self.dots_total == 0:
+                self._state = "Victory"
+
             # MOVE PLAYER
             if self.player.moving_right:
                 self.player.x += self.player.velocity
@@ -197,11 +201,13 @@ class Maze:
                 else:
                     self.player.last_move_direction = "down"
 
-            # GET NEXT INPUT
+            # GET NEXT INPUT AND CATCH EVENTS
             for event in pygame.event.get():
                 if event.type == QUIT:  # Check for window quit (when X is pressed)
                     pygame.quit()  # stop pygame
                     sys.exit()  # stop the script
+                if event.type == self.RELEASE_GHOST:
+                    self.ghost_leave_box()
 
                 if self._state == "Start":
                     mouse_pos = pygame.mouse.get_pos()
@@ -210,6 +216,7 @@ class Maze:
                         mouse_click = pygame.mouse.get_pressed()
                         if mouse_click[0] == 1:
                             self._state = "Playing"
+                            pygame.time.set_timer(self.RELEASE_GHOST, 1000)
 
                 elif self._state == "Playing":
                     if event.type == KEYDOWN:  # on key press
@@ -231,33 +238,8 @@ class Maze:
                         if event.key == K_DOWN:
                             self.player.moving_down = False
 
-            if self._state == "Playing":
-                # Ghost movement
-                print(self.ghost_box[0])
-                for ghost in self.ghost_box:
-                    direction = random.randint(1, 4)
-                    speed = 0.05
-                    if ghost.hitbox is not None:
-                        print(ghost.hitbox)
-                        if direction == 1:
-                            ghost.x += 1 * self.map_scale[1] * speed
-                            if self.collide(ghost.hitbox, ["walls"]):
-                                ghost.x -= 1 * self.map_scale[1] * speed
-                        if direction == 2:
-                            ghost.x -= 1 * self.map_scale[1] * speed
-                            if self.collide(ghost.hitbox, ["walls"]):
-                                ghost.x += 1 * self.map_scale[1] * speed
-                        if direction == 3:
-                            ghost.y += 1 * self.map_scale[0] * speed
-                            if self.collide(ghost.hitbox, ["walls"]):
-                                ghost.y -= 1 * self.map_scale[0] * speed
-                        if direction == 4:
-                            ghost.y -= 1 * self.map_scale[0] * speed
-                            if self.collide(ghost.hitbox, ["walls"]):
-                                ghost.y += 1 * self.map_scale[0] * speed
-                        pygame.display.update()
-
-
+            for ghost in self.ghosts:
+                ghost.move()
 
             self.interractions()
             self.render()
@@ -278,6 +260,21 @@ class Maze:
         'e' = ghosts spawn door (entry/exit)\n
         '''
 
+        if self._state == "Victory":
+            txt_victory = self.font_20.render("VICTORY", True, (0, 255, 0))
+            txt_victory_rect = txt_victory.get_rect()
+            txt_victory_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.map_scale[1] * self.dimensions[0] // 2)
+            self.screen.blit(txt_victory, txt_victory_rect)
+            pygame.display.update()
+            time.sleep(2)
+            pygame.quit()
+            sys.exit()
+
+        if self._state == "Game Over":
+            time.sleep(2)
+            pygame.quit()
+            sys.exit()
+
         self.screen.fill(self.color)
 
         for wall_rect in self.collision_map['walls']:
@@ -293,7 +290,7 @@ class Maze:
             ipos = i * self.map_scale[0]
             self.screen.blit(self.img_dot, (j - self.dots_offset[1], i - self.dots_offset[0]))
 
-        for ghost in self.ghost_box:
+        for ghost in self.ghosts:
             ghost.render(self.screen)
 
         if self._state == "Start":
@@ -325,8 +322,18 @@ class Maze:
                 if pygame.Rect(raw_rect).colliderect(box):
                     return True
 
-
-
+    def ghost_leave_box(self):
+        if self.ghosts_in_box == 3:
+            self.ghosts[1].set_state("Exit Mid")
+            self.ghosts_in_box -= 1
+        elif self.ghosts_in_box == 2:
+            self.ghosts[0].set_state("Exit Left")
+            self.ghosts_in_box -= 1
+        elif self.ghosts_in_box == 1:
+            self.ghosts[2].set_state("Exit Right")
+            self.ghosts_in_box -= 1
+        else:
+            pygame.time.set_timer(self.RELEASE_GHOST, 0)
 
     # ############################## Entity Interraction ##############################
 
@@ -340,6 +347,12 @@ class Maze:
                 if pygame.Rect(raw_rect).colliderect(self.player.hitbox):
                     self.find_and_process_interraction(tile_type, idx)
                     return
+
+            for ghost in self.ghosts:
+                prect = pygame.Rect(self.player.hitbox)
+                grect = pygame.Rect(ghost.hitbox)
+                if prect.colliderect(grect):
+                    self._state = "Game Over"
 
     def find_and_process_interraction(self, tile_type, idx):
         '''

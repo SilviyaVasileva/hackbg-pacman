@@ -16,4 +16,4 @@ def pacman_game(mapfile):
     game_loop(maze.get_loop())
 
 if __name__ == '__main__':
-    pacman_game('./Pacman/maps/yellow.txt')
+    pacman_game('./Pacman/maps/' + sys.argv[1])

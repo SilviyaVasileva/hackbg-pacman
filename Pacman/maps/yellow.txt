@@ -2,7 +2,7 @@ dimensions=13x21
 player=10, 8
 color=0, 0, 0
 walls=24, 24, 128
-total=116
+total=115
 #####################
 #pooooooooooooooooop#
 #o##o###########o##o#        
