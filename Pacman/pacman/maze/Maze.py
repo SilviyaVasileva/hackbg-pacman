@@ -1,9 +1,11 @@
 import pygame
 import sys
 import time
+import random
 
 
 from pygame.locals import *
+from ..characters.Ghost import Ghost
 
 
 class Maze:
@@ -21,18 +23,28 @@ class Maze:
         'total': 4
     }
     parser_keywords_count = len(parser_keywords)
-
+    difficulty = [
+        "Easy",
+        "Normal",
+        "Hard",
+        "Swarm"
+    ]
 
 
 
     # ######################### Setups and Properties #########################
-    def __init__(self, mapfile, player):
+    def __init__(self, mapfile, player, difficulty="Normal"):
+        # =============== Small Validations ===============
+        if difficulty not in Maze.difficulty:
+            raise ValueError("Unrecognized difficulty")
+
         # =============== Configs ===============
         self.clock = pygame.time.Clock()
         self._state = "Start"
         self.states = ["Start", "Playing"]
         self.map_scale = (36, 36)
         self.bars_h = 80
+        self.difficulty = difficulty
         
         # =============== Automatic Image Loading ===============
         img_dot = pygame.image.load(f"{Maze.COLLECTIBLES}/dots/dot.png")
@@ -41,20 +53,19 @@ class Maze:
         # =============== Positions and Scale ===============
         self.dots_scale = (10, 10)
         self.dots_offset = ((self.map_scale[0]- self.dots_scale[0]) // 2, (self.map_scale[1] - self.dots_scale[1]) // 2)
-
+        self.gate_scale = (self.map_scale[0], self.map_scale[1] // 3)
 
         # =============== Maze data ===============
         self.collision_map = {
             "walls": [],
             "dots": [],
             "power_dots": [],
-            "ghost_gate": [],
+            "gates": [],
             "ghosts": []
         }
         self.entities = [
             "dots",
-            "power_ups",
-            "ghost_gate", 
+            "power_ups", 
             "ghosts"
         ]
 
@@ -64,11 +75,17 @@ class Maze:
         self.wall_color = init_data['walls']
         self.player_start = init_data['player']
         self.maze = init_data['maze']
+        self.gate = init_data['gate']
+        self.ghosts_start = init_data['ghosts']
         self.player = player
         self.dots_total = init_data['total']
 
+        self.gate_color = (224, 128, 128)
+
         # =============== Game State ===============
         self.game_points = 0
+        self.ghost_box = []
+        self.ghost_roaming = []
 
         # =============== Display Elements ==============
         self.font_20 = pygame.font.Font("freesansbold.ttf", 30)
@@ -83,73 +100,38 @@ class Maze:
         # =============== Auto Init Commands ===============
         self.screen = pygame.display.set_mode(self.win_size(), 0, 32)
         self.build()
+        self.init_ghosts()
 
         # =============== Debug vars ===============
         self.draw_all_collisions = False
 
-        # =============== Start game ===============
-        self.start_game = False
+
+    def init_ghosts(self):
+        choices = list(Ghost.skins.keys())
+
+        if self.difficulty == 'Normal':
+            for i in range(0 , len(choices)):
+                skin = random.choice(choices)
+                choices.remove(skin)
+                self.ghost_box.append(Ghost(skin, self.player.velocity))
+
+        self.place_ghosts()
 
     def place_player(self):
-        self.player.pos['x'] = self.player_start[0]*self.map_scale[0]
-        self.player.pos['y'] = self.player_start[1]*self.map_scale[1] + self.bars_h
+        self.player.pos['x'] = self.player_start[0] * self.map_scale[0]
+        self.player.pos['y'] = self.player_start[1] * self.map_scale[1] + self.bars_h
         self.player.update_collision()
         self.player.render(self.screen)
 
+    def place_ghosts(self):
+        for i in range(3):
+            ghost = self.ghost_box[i]
+            ghost.pos['x'] = self.ghosts_start[i][0] * self.map_scale[0]
+            ghost.pos['y'] = self.ghosts_start[i][1] * self.map_scale[1] + self.bars_h
+            ghost.update_collision()
+
     def start(self):
         self.display_points(self.screen)
-
-    def set_state(self, val):
-        '''
-        'Start' - Game is frozen. Wait for the start button to be pressed. Block movement inputs.
-        'Playing' - Game is playing normally.
-        '''
-
-
-
-
-    # ######################### State #########################
-    def render(self):
-        '''
-        Renders the map.\n
-        Map is interpreted as follows:
-
-        ' ' = nothing, don't draw a tile\n
-        '#' = wall\n
-        'g' = ghost (enemy)\n
-        'o' = dot (main collectible)\n
-        'p' = super dot (let's you eat ghosts)\n
-        'e' = ghosts spawn door (entry/exit)\n
-        '''
-
-        self.screen.fill(self.color)
-
-        for wall_rect in self.collision_map['walls']:
-            pygame.draw.rect(self.screen, self.wall_color, wall_rect)
-
-        for dot in self.collision_map['dots']:
-            j, i = dot[0], dot[1]
-
-            jpos = j * self.map_scale[1]
-            ipos = i * self.map_scale[0]
-            self.screen.blit(self.img_dot, (j - self.dots_offset[1], i - self.dots_offset[0]))
-
-        if self._state == "Start":
-            pygame.draw.rect(self.screen, self.wall_color, self.start_button_frame_rect, 4)
-            self.screen.blit(self.start_button, self.start_button_rect)
-
-        if self._state == "Playing":
-            self.render_points()
-
-        if self.draw_all_collisions:
-            for raw_rect in self.collision_map['dots']:
-                pygame.draw.rect(self.screen, (0, 0, 255), raw_rect, 2)
-
-    def render_points(self):
-        txt_points = self.font_20.render(f"{self.game_points}", True, (0, 180, 50))
-        txt_points_rect = txt_points.get_rect()
-        txt_points_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.bars_h // 2)
-        self.screen.blit(txt_points, txt_points_rect)
 
     def build(self):
         '''
@@ -163,27 +145,24 @@ class Maze:
             for j, pos in enumerate(row):
                 j *= self.map_scale[0]
                 if pos == '#':
-                    self.collision_map['walls'].append(tuple(
+                    self.collision_map["walls"].append(tuple(
                         [j, i, self.map_scale[0], self.map_scale[1]]  # creates tuple with raw pygame.Rect data
-                        ))
+                    ))
+
                 if pos == 'o':
                     self.collision_map["dots"].append(tuple(
                         [j + self.dots_offset[0], i + self.dots_offset[1], self.dots_scale[0], self.dots_scale[1]]  # creates tuple with raw pygame.Rect data
                     ))
+            
+                if pos == 'e':
+                    self.collision_map["gates"].append(tuple(
+                        [j, i, self.gate_scale[0], self.gate_scale[1]]  # creates tuple with raw pygame.Rect data
+                    ))
 
-    def collide(self, box, tile):
-        '''
-        Returns True if box collides with tile.\n
-        Parameters:\n
-        Box - pygame.Rect\n
-        tile - string (key for collision_map)
-        '''
-        for raw_rect in self.collision_map[tile]:
-            if pygame.Rect(raw_rect).colliderect(box):
-                return True
 
-    # ############################## Entity Interraction ##############################
 
+
+    # ######################### State #########################
     def get_loop(self):
         return self.loop
 
@@ -195,25 +174,25 @@ class Maze:
             # MOVE PLAYER
             if self.player.moving_right:
                 self.player.x += self.player.velocity
-                if self.collide(self.player.hitbox, "walls"):
+                if self.collide(self.player.hitbox, ["walls", "gates"]):
                     self.player.x -= self.player.velocity
                 else:
                     self.player.last_move_direction = "right"
             if self.player.moving_left:
                 self.player.x -= self.player.velocity
-                if self.collide(self.player.hitbox, "walls"):
+                if self.collide(self.player.hitbox, ["walls", "gates"]):
                     self.player.x += self.player.velocity
                 else:
                     self.player.last_move_direction = "left"
             if self.player.moving_up:
                 self.player.y -= self.player.velocity
-                if self.collide(self.player.hitbox, "walls"):
+                if self.collide(self.player.hitbox, ["walls", "gates"]):
                     self.player.y += self.player.velocity
                 else:
                     self.player.last_move_direction = "up"
             if self.player.moving_down:
                 self.player.y += self.player.velocity
-                if self.collide(self.player.hitbox, "walls"):
+                if self.collide(self.player.hitbox, ["walls", "gates"]):
                     self.player.y -= self.player.velocity
                 else:
                     self.player.last_move_direction = "down"
@@ -257,6 +236,71 @@ class Maze:
             self.player.render(self.screen)
             pygame.display.update()
             self.clock.tick(60)  # Framerate
+
+    def render(self):
+        '''
+        Renders the map.\n
+        Map is interpreted as follows:
+
+        ' ' = nothing, don't draw a tile\n
+        '#' = wall\n
+        'g' = ghost (enemy)\n
+        'o' = dot (main collectible)\n
+        'p' = super dot (let's you eat ghosts)\n
+        'e' = ghosts spawn door (entry/exit)\n
+        '''
+
+        self.screen.fill(self.color)
+
+        for wall_rect in self.collision_map['walls']:
+            pygame.draw.rect(self.screen, self.wall_color, wall_rect)
+
+        for gate_rect in self.collision_map['gates']:
+            pygame.draw.rect(self.screen, self.gate_color, gate_rect)
+
+        for dot in self.collision_map['dots']:
+            j, i = dot[0], dot[1]
+
+            jpos = j * self.map_scale[1]
+            ipos = i * self.map_scale[0]
+            self.screen.blit(self.img_dot, (j - self.dots_offset[1], i - self.dots_offset[0]))
+
+        for ghost in self.ghost_box:
+            ghost.render(self.screen)
+
+        if self._state == "Start":
+            pygame.draw.rect(self.screen, self.wall_color, self.start_button_frame_rect, 4)
+            self.screen.blit(self.start_button, self.start_button_rect)
+
+        if self._state == "Playing":
+            self.render_points()
+
+        if self.draw_all_collisions:
+            for raw_rect in self.collision_map['dots']:
+                pygame.draw.rect(self.screen, (0, 0, 255), raw_rect, 2)
+
+    def render_points(self):
+        txt_points = self.font_20.render(f"{self.game_points}", True, (0, 180, 50))
+        txt_points_rect = txt_points.get_rect()
+        txt_points_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.bars_h // 2)
+        self.screen.blit(txt_points, txt_points_rect)
+
+    def collide(self, box, tile_list):
+        '''
+        Returns True if box collides with tile.\n
+        Parameters:\n
+        Box - pygame.Rect\n
+        tile - string (key for collision_map)
+        '''
+        for tile in tile_list:
+            for raw_rect in self.collision_map[tile]:
+                if pygame.Rect(raw_rect).colliderect(box):
+                    return True
+
+
+
+
+    # ############################## Entity Interraction ##############################
 
     def interractions(self):
         for tile_type, tiles in self.collision_map.items():
@@ -304,7 +348,7 @@ class Maze:
                 raise ValueError("Parser met duplicating keywords.")
 
             maze = f.readlines()
-            data['maze'] = cls.parse_maze(maze)
+            data['maze'], data['gate'], data['ghosts'] = cls.parse_maze(maze)
         return data
 
     @classmethod
@@ -353,6 +397,8 @@ class Maze:
 
     @classmethod
     def parse_maze(cls, matrix):
+        gate = None  # x, y of gate
+        ghosts = []  # tuple of 3 tuples of x, y
         for idx, line in enumerate(matrix):
             if line == "":
                 del matrix[idx]
@@ -360,7 +406,57 @@ class Maze:
                 matrix[idx] = list(line.strip())
                 if matrix[idx][-1] == '\n':
                     matrix[idx] = matrix[idx][:-1]
-        return matrix
+
+        cls.validate_ghost_box(matrix)
+
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                if matrix[i][j] == 'e':
+                    gate = (i, j)
+                if matrix[i][j] == 'g':
+                    ghosts.append((j, i))
+
+        return (matrix, gate, tuple(ghosts))
+
+    @staticmethod
+    def validate_ghost_box(maze):
+        gate_occurances = 0
+        p = None
+        q = None
+
+        for line_idx, line in enumerate(maze):
+            for tile_idx, tile in enumerate(line):
+                if tile == 'e':
+                    gate_occurances += 1
+                    p = line_idx
+                    q = tile_idx
+                    if (gate_occurances > 1):
+                        raise ValueError("Multiple gates")
+
+        if p > (len(maze) - 1) - 2:
+            raise ValueError("Gate is too low")
+        if q < 2 or q > (len(line) - 1) - 2:
+            raise ValueError("No horizontal space for the box")
+        if maze[p+1][q-1] != 'g' or maze[p+1][q] != 'g' or maze[p+1][q+1] != 'g':
+            raise ValueError("3 ghosts beneath gate not found")
+        if (
+            maze[p][q-2] != '#' or
+            maze[p][q-1] != '#' or
+            maze[p][q+1] != '#' or
+            maze[p][q+2] != '#' or
+
+            maze[p+1][q-2] != '#' or
+            maze[p+1][q+2] != '#' or
+
+            maze[p+2][q-2] != '#' or
+            maze[p+2][q-1] != '#' or
+            maze[p+2][q] != '#' or
+            maze[p+2][q+1] != '#' or
+            maze[p+2][q+2] != '#'
+        ):
+            raise ValueError("Box tiling incorrect")
+
+
 
 
 
