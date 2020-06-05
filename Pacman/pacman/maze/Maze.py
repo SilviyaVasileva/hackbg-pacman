@@ -231,6 +231,34 @@ class Maze:
                         if event.key == K_DOWN:
                             self.player.moving_down = False
 
+            if self._state == "Playing":
+                # Ghost movement
+                print(self.ghost_box[0])
+                for ghost in self.ghost_box:
+                    direction = random.randint(1, 4)
+                    speed = 0.05
+                    if ghost.hitbox is not None:
+                        print(ghost.hitbox)
+                        if direction == 1:
+                            ghost.x += 1 * self.map_scale[1] * speed
+                            if self.collide(ghost.hitbox, ["walls"]):
+                                ghost.x -= 1 * self.map_scale[1] * speed
+                        if direction == 2:
+                            ghost.x -= 1 * self.map_scale[1] * speed
+                            if self.collide(ghost.hitbox, ["walls"]):
+                                ghost.x += 1 * self.map_scale[1] * speed
+                        if direction == 3:
+                            ghost.y += 1 * self.map_scale[0] * speed
+                            if self.collide(ghost.hitbox, ["walls"]):
+                                ghost.y -= 1 * self.map_scale[0] * speed
+                        if direction == 4:
+                            ghost.y -= 1 * self.map_scale[0] * speed
+                            if self.collide(ghost.hitbox, ["walls"]):
+                                ghost.y += 1 * self.map_scale[0] * speed
+                        pygame.display.update()
+
+
+
             self.interractions()
             self.render()
             self.player.render(self.screen)
