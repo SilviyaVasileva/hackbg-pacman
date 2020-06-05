@@ -263,7 +263,7 @@ class Maze:
         if self._state == "Victory":
             txt_victory = self.font_20.render("VICTORY", True, (0, 255, 0))
             txt_victory_rect = txt_victory.get_rect()
-            txt_victory_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.map_scale[1] * self.dimensions[0] // 2)
+            txt_victory_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.map_scale[1] * self.dimensions[0] // 2 + self.bars_h)
             self.screen.blit(txt_victory, txt_victory_rect)
             pygame.display.update()
             time.sleep(2)
@@ -271,6 +271,11 @@ class Maze:
             sys.exit()
 
         if self._state == "Game Over":
+            txt_game_over = self.font_20.render("Game Over", True, (255, 0, 0))
+            txt_game_over_rect = txt_game_over.get_rect()
+            txt_game_over_rect.center = (self.map_scale[0] * self.dimensions[1] // 2, self.map_scale[1] * self.dimensions[0] // 2 + self.bars_h)
+            self.screen.blit(txt_game_over, txt_game_over_rect)
+            pygame.display.update()
             time.sleep(2)
             pygame.quit()
             sys.exit()
@@ -519,45 +524,3 @@ class Maze:
         self.draw_all_collisions = val
         self.player.enable_collision_rendering(val)
 
-    # ############################## Draw button ##############################
-    # def start_button(self, screen, button_color, coord):
-    #     pygame.draw.rect(screen, button_color, coord)
-    #     Maze.font_20, textRect = self.text_objects("GO!", smallText)
-    #     textRect.center = ((coord[0] + (coord[2] // 2)), (coord[1] + (coord[3] // 2)))
-    #     screen.blit(textSurf, textRect)
-    #     if not self.start_game:
-    #         self.start_game = self.button_click(coord)
-    #     else:
-    #         self.start(screen)
-    #     # pygame.display.update()
-
-    # # ############################## Draw button text ##############################
-    # def button_click(self, coord):
-    #     # mouse movement
-    #     mouse_coord = pygame.mouse.get_pos()
-
-    #     if coord[0] + coord[2] > mouse_coord[0] > coord[0] and coord[1] + coord[3] > mouse_coord[1] > coord[3]:
-    #         mouse_click = pygame.mouse.get_pressed()
-    #         if mouse_click[0] == 1:
-    #             return True
-    #         # print(mouse_click)
-    #     # print(mouse_coord)
-    #     return False
-
-    # # ############################## Draw button text ##############################
-    # def text_objects(self, text, font):
-    #     textSurface = font.render(text, True, (0, 180, 50))
-    #     return textSurface, textSurface.get_rect()
-
-
-
-
-    # ############################## Display points ##############################
-
-
-
-
-
-    # ############################## Print lifes ##############################
-    def hearts(self):
-        pass
